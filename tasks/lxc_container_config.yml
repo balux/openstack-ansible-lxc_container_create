@@ -119,11 +119,12 @@
 - name: Drop container network file (interfaces)
   template:
     src: "{{ lxc_container_interface }}"
-    dest: "{{ lxc_container_interface_target }}"
+    dest: "/var/lib/lxc/{{ inventory_hostname }}/rootfs/{{ lxc_container_interface_target }}"
     owner: "root"
     group: "root"
     mode: "0644"
   with_dict: "{{ container_networks | default({}) }}"
+  delegate_to: "{{ physical_host }}"
 
 - name: Drop container network file (routes)
   template:
@@ -142,16 +143,18 @@
 - name: Drop container setup script
   template:
     src: "container-setup.sh.j2"
-    dest: "/opt/container-setup.sh"
+    dest: "/var/lib/lxc/{{ inventory_hostname }}/rootfs/opt/container-setup.sh"
     owner: "root"
     group: "root"
     mode: "0755"
+  delegate_to: "{{ physical_host }}"
 
 - name: Run container setup script
-  command: /opt/container-setup.sh
+  command: lxc-attach -n {{ inventory_hostname }} -- /opt/container-setup.sh
   register: container_setup
   changed_when: false
   failed_when: container_setup.rc != 0
+  delegate_to: "{{ physical_host }}"
 
 # NOTE(major): the lxc.network.veth.pair line must appear *immediately* after
 # the lxc.network.name congfiguration line or it will be ignored.  That's why
